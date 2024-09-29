@@ -2,27 +2,29 @@ name: Run Track Stars
 
 on:
   schedule:
-    - cron: '* * * * *'  # 每小时运行一次
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 * * * *'  # 每小时运行一次
+  workflow_dispatch:
 
 jobs:
-  run-script:
+  track-stargazers:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v2
       with:
         python-version: '3.x'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests beautifulsoup4 python-dotenv schedule
+        pip install requests beautifulsoup4 python-dotenv
 
-    - name: Run script
-      run: |
-        python star.py
+    - name: Track Stargazers
+      env:
+        GITHUB_OWNER: ChatGPTNextWeb
+        GITHUB_REPO: ChatGPT-Next-Web
+      run: python star.py  # 替换为你的脚本文件名
