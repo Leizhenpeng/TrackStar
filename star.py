@@ -10,7 +10,7 @@ repo = os.getenv("GITHUB_REPO")
 total_pages = 2
 
 # Cloudflare Workers KV URL
-kv_url = "https://github-star-track.qq1844962257.workers.dev/stargazers"
+kv_url = "https://github-star-track.helloworld-gpt.workers.dev//stargazers"
 
 # 超时时间（秒）
 timeout_seconds = 10
