@@ -1,4 +1,4 @@
-name: Run Python Script
+name: Run Track Stars
 
 on:
   schedule:
