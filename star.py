@@ -14,8 +14,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 # 从环境变量获取仓库信息
-owner = os.getenv("REPO_OWNER")
-repo = os.getenv("REPO_NAME")
+repo = os.getenv("TARGET_REPO")
 access_token = os.getenv("ACCESS_TOKEN")
 feishu_webhook_url = os.getenv("FEISHU_WEBHOOK")
 
@@ -39,7 +38,7 @@ def send_request(url):
 def fetch_stargazers():
     stargazers = []
     for page in range(1, total_pages + 1):
-        url = f'https://github.com/{owner}/{repo}/stargazers?page={page}'
+        url = f'https://github.com/{repo}/stargazers?page={page}'
         response = send_request(url)
         if response:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -126,12 +125,34 @@ def update_total_csv(new_stargazers_details, csv_filename):
             filtered_user = {key: user[key] for key in FIELDNAMES if key in user}
             writer.writerow(filtered_user)
 
+# 函数：获取最新的运行ID和artifact ID
+def get_latest_artifact_info():
+    url = f'https://api.github.com/repos/{repo}/actions/runs'
+    response = send_request(url)
+    if response:
+        runs = response.json().get('workflow_runs', [])
+        if runs:
+            latest_run_id = runs[0]['id']
+            artifacts_url = runs[0]['artifacts_url']
+            artifacts_response = send_request(artifacts_url)
+            if artifacts_response:
+                artifacts = artifacts_response.json().get('artifacts', [])
+                if artifacts:
+                    latest_artifact_id = artifacts[0]['id']
+                    return latest_run_id, latest_artifact_id
+    return None, None
+
 # 函数：发送消息到Feishu
 def send_message_to_feishu(new_stargazers):
     headers = {
         "Content-Type": "application/json"
     }
-    artifact_url = f" https://api.github.com/repos/DDMeaqua/TrackStar/actions/artifacts/1993977558"
+    latest_run_id, latest_artifact_id = get_latest_artifact_info()
+    if latest_run_id and latest_artifact_id:
+        artifact_url = f"https://github.com/{repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
+    else:
+        logging.error("无法获取最新的artifact信息")
+        return
     data = {
         "msg_type": "text",
         "content": {
