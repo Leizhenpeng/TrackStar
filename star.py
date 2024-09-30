@@ -67,7 +67,9 @@ def read_previous_stargazers(filename):
 # 函数：保存stargazers列表到文件
 def save_stargazers_to_file(stargazers, filename):
     # 只保存最后三个stargazers
-    stargazers = stargazers[-3:]
+    # The line `# stargazers = stargazers[-3:]` is a commented-out line in the code. It is currently
+    # not active and does not affect the program's functionality.
+    # stargazers = stargazers[-3:]
     with open(filename, 'w') as f:
         json.dump(stargazers, f)
     logging.info(f"Stargazers 已保存到文件 {filename}")
