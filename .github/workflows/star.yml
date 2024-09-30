@@ -1,8 +1,8 @@
 name: Run Track Stars
 
 on:
-  # schedule:
-  #   - cron: '*/20 * * * *'  # 每20分钟运行一次
+  schedule:
+    - cron: '0 * * * *'  # 每小时一次
   workflow_dispatch:
 
 jobs:
@@ -70,23 +70,25 @@ jobs:
 
     - name: Track Stargazers
       env:
-        REPO_OWNER: ${{ secrets.REPO_OWNER }}
-        REPO_NAME: ${{ secrets.REPO_NAME }}
+        TARGET_REPO: ${{ secrets.TARGET_REPO }}
         FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
       run: python star.py  # 替换为你的脚本文件名
 
-    - name: Upload stargazers file
+    - name: Upload stargazers and CSV files
       uses: actions/upload-artifact@v3
       with:
         name: stargazers-${{ github.run_id }}
-        path: stargazers.json
+        path: |
+          stargazers.json
+          new.csv
+          total.csv
 
   use-stargazers:
     runs-on: ubuntu-latest
     needs: track-stargazers
 
     steps:
-    - name: Download stargazers file
+    - name: Download stargazers and CSV files
       uses: actions/download-artifact@v3
       with:
         name: stargazers-${{ github.run_id }}
