@@ -7,8 +7,7 @@
 在你的 GitHub 仓库中，设置以下 Secrets：
 
 - `ACCESS_TOKEN`：你的 GitHub 个人访问令牌（需要有 `repo` 权限）。
-- `REPO_OWNER`：你的 GitHub 用户名或组织名。
-- `REPO_NAME`：你的仓库名。
+- `TARGET_REPO`: GitHub 仓库名，格式为 `owner/repo`。
 - `FEISHU_WEBHOOK`：飞书群的 Webhook URL。
 
 你可以参考 `example.env` 文件来配置这些环境变量。
