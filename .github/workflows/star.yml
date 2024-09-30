@@ -35,12 +35,21 @@ jobs:
         previous_run_id=$(echo $response | jq -r '.workflow_runs[0].id')
         echo "PREV_RUN_ID=$previous_run_id" >> $GITHUB_ENV
 
-    - name: Download previous stargazers file
-      uses: actions/download-artifact@v3
-      with:
-        name: stargazers-${{ env.PREV_RUN_ID }}
-        path: stargazers.json
-      continue-on-error: true  # 如果文件不存在，不要失败
+    - name: Download previous stargazers file using API
+      id: download_stargazers
+      env:
+        MY_GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        PREV_RUN_ID: ${{ env.PREV_RUN_ID }}
+      run: |
+        echo "Downloading stargazers.json from previous run ID: $PREV_RUN_ID"
+        curl -H "Authorization: token $MY_GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -o stargazers.json \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runs/$PREV_RUN_ID/artifacts"
+        if [ ! -f stargazers.json ]; then
+          echo "stargazers.json not found, creating an empty file."
+          echo "[]" > stargazers.json
+        fi
 
     - name: List files for debugging
       if: always()
@@ -66,8 +75,7 @@ jobs:
     - name: Download stargazers file
       uses: actions/download-artifact@v3
       with:
-        name: stargazers-${{ needs.track-stargazers.outputs.PREV_RUN_ID }}
-      continue-on-error: true  # 如果文件不存在，不要失败
+        name: stargazers-${{ github.run_id }}
 
     - name: List files for debugging
       if: always()
