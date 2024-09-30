@@ -41,6 +41,9 @@ jobs:
         name: stargazers-${{ env.PREV_RUN_ID }}
         path: stargazers.json
       continue-on-error: true  # 如果文件不存在，不要失败
+      run: |
+        echo "Attempting to download artifact: stargazers-${{ env.PREV_RUN_ID }}"
+        ls -l  # 列出当前目录的文件，帮助调试
 
     - name: Track Stargazers
       env:
@@ -63,6 +66,9 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: stargazers-${{ github.run_id }}
+      run: |
+        echo "Attempting to download artifact: stargazers-${{ github.run_id }}"
+        ls -l  # 列出当前目录的文件，帮助调试
 
     - name: Use the stargazers data
       run: cat stargazers.json
