@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import os
 import logging
 import json
+import csv
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
@@ -66,17 +67,64 @@ def read_previous_stargazers(filename):
 
 # 函数：保存stargazers列表到文件
 def save_stargazers_to_file(stargazers, filename):
-    # 只保存最后三个stargazers
-    # The line `# stargazers = stargazers[-3:]` is a commented-out line in the code. It is currently
-    # not active and does not affect the program's functionality.
-    # stargazers = stargazers[-3:]
     with open(filename, 'w') as f:
         json.dump(stargazers, f)
     logging.info(f"Stargazers 已保存到文件 {filename}")
 
+# 函数：保存stargazers列表到CSV文件
+def save_stargazers_to_csv(stargazers, filename):
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['username'])
+        for user in stargazers:
+            writer.writerow([user])
+    logging.info(f"Stargazers 已保存到CSV文件 {filename}")
+
 # 函数：对比新旧stargazers，找出新增的stargazers
 def find_new_stargazers(old_stargazers, new_stargazers):
     return list(set(new_stargazers) - set(old_stargazers))
+
+# 函数：获取用户详细信息
+def fetch_user_details(username):
+    url = f'https://api.github.com/users/{username}'
+    response = send_request(url)
+    if response:
+        return response.json()
+    else:
+        return None
+
+
+FIELDNAMES = [
+    'login', 'id', 'node_id', 'avatar_url', 'url', 'html_url', 
+    'followers_url', 'following_url', 'gists_url', 'starred_url', 
+    'subscriptions_url', 'organizations_url', 'repos_url', 'events_url', 
+    'received_events_url', 'type', 'site_admin', 'name', 'location', 
+    'bio', 'public_repos', 'public_gists', 'followers', 'following', 
+    'created_at', 'updated_at'
+]
+
+# 函数：保存stargazers详细信息到CSV文件
+def save_stargazers_details_to_csv(stargazers_details, filename):
+    with open(filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        for user in stargazers_details:
+            filtered_user = {key: user[key] for key in FIELDNAMES if key in user}
+            writer.writerow(filtered_user)
+
+# 函数：更新total.csv文件
+def update_total_csv(new_stargazers_details, csv_filename):
+    file_exists = os.path.isfile(csv_filename)
+    
+    with open(csv_filename, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        
+        if not file_exists:
+            writer.writeheader()
+        
+        for user in new_stargazers_details:
+            filtered_user = {key: user[key] for key in FIELDNAMES if key in user}
+            writer.writerow(filtered_user)
 
 # 函数：发送消息到Feishu
 def send_message_to_feishu(new_stargazers):
@@ -87,7 +135,7 @@ def send_message_to_feishu(new_stargazers):
     data = {
         "msg_type": "text",
         "content": {
-            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user}" for user in new_stargazers]) + f"\n\n点击 {artifact_url} 查看当日star用户信息"
+            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + f"\n\n点击 {artifact_url} 查看当日star用户信息"
         }
     }
     try:
@@ -109,15 +157,30 @@ def track_stargazers():
     logging.info(f"previous_stargazers: {previous_stargazers}")
 
     # 找出新增的stargazers
-    new_stargazers = find_new_stargazers(previous_stargazers, current_stargazers)
-    logging.info(f"new_stargazers: {new_stargazers}")
+    new_stargazers_usernames = find_new_stargazers(previous_stargazers, current_stargazers)
+    logging.info(f"new_stargazers_usernames: {new_stargazers_usernames}")
+
+    # 获取新增stargazers的详细信息
+    new_stargazers_details = []
+    for username in new_stargazers_usernames:
+        user_details = fetch_user_details(username)
+        if user_details:
+            new_stargazers_details.append(user_details)
+    logging.info(f"new_stargazers_details: {new_stargazers_details}")
+
     # 保存最新的stargazers列表到文件
     save_stargazers_to_file(current_stargazers, 'stargazers.json')
 
-    if new_stargazers:
+    if new_stargazers_details:
         # 如果有新增的stargazers，打印并发送消息到Feishu
-        logging.info(f"新增的stargazers: {new_stargazers}")
-        send_message_to_feishu(new_stargazers)
+        logging.info(f"新增的stargazers: {new_stargazers_details}")
+        send_message_to_feishu(new_stargazers_details)
+        
+        # 保存新增的stargazers到new.csv
+        save_stargazers_details_to_csv(new_stargazers_details, 'new.csv')
+        
+        # 更新total.csv
+        update_total_csv(new_stargazers_details, 'total.csv')
     else:
         logging.info("没有新的stargazers")
 
