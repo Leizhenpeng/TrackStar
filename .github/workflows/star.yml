@@ -1,8 +1,8 @@
 name: Run Track Stars
 
 on:
-  # schedule:
-  #   - cron: '*/20 * * * *'  # 每20分钟运行一次
+  schedule:
+    - cron: '0 0 * * *'  # 每天一次
   workflow_dispatch:
 
 jobs:
