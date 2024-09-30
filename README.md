@@ -11,6 +11,8 @@
 - `REPO_NAME`：你的仓库名。
 - `FEISHU_WEBHOOK`：飞书群的 Webhook URL。
 
+你可以参考 `example.env` 文件来配置这些环境变量。
+
 ## 用途
 
 - 自动跟踪仓库的 Stargazers。
@@ -30,6 +32,6 @@
 - `star.py`：用于获取和更新 Stargazers 数据的 Python 脚本。
 - `README.md`：项目说明文件。
 - `.gitignore`：Git 忽略文件配置。
-- `.env`：环境变量文件（可选）。
+- `example.env`：环境变量示例文件。
 
 如有问题或建议，请提交 issue 或 pull request。

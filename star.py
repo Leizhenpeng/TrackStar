@@ -15,6 +15,8 @@ logging.basicConfig(level=logging.INFO)
 # 从环境变量获取仓库信息
 owner = os.getenv("REPO_OWNER")
 repo = os.getenv("REPO_NAME")
+access_token = os.getenv("ACCESS_TOKEN")
+feishu_webhook_url = os.getenv("FEISHU_WEBHOOK")
 
 # 定义要抓取的总页数
 total_pages = 2
@@ -22,13 +24,10 @@ total_pages = 2
 # 超时时间（秒）
 timeout_seconds = 10
 
-# Feishu Webhook URL
-feishu_webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/5a5ca508-cecc-4a8a-a997-474f9c5658ac"
-
 # 函数：发送HTTP请求并处理响应
 def send_request(url):
     try:
-        response = requests.get(url, timeout=timeout_seconds)
+        response = requests.get(url, headers={'Authorization': f'token {access_token}'}, timeout=timeout_seconds)
         response.raise_for_status()
         return response
     except requests.RequestException as e:
@@ -91,7 +90,7 @@ def send_message_to_feishu(new_stargazers):
     try:
         response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
         response.raise_for_status()
-        logging.info("消息已发送到Feishu")
+        logging.info("消��已发送到Feishu")
     except requests.RequestException as e:
         logging.error(f"发送消息到Feishu时发生错误: {e}")
 
