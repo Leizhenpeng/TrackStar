@@ -24,7 +24,7 @@ jobs:
         pip install requests beautifulsoup4
 
     - name: Download previous stargazers file
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: stargazers
         path: stargazers.json
@@ -37,7 +37,7 @@ jobs:
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers file
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: stargazers
         path: stargazers.json
@@ -48,7 +48,7 @@ jobs:
 
     steps:
     - name: Download stargazers file
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: stargazers
 
