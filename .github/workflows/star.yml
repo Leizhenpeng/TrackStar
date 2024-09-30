@@ -72,6 +72,7 @@ jobs:
       env:
         REPO_OWNER: ${{ secrets.REPO_OWNER }}
         REPO_NAME: ${{ secrets.REPO_NAME }}
+        FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers file
