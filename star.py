@@ -150,13 +150,14 @@ def send_message_to_feishu(new_stargazers):
     latest_run_id, latest_artifact_id = get_latest_artifact_info()
     if latest_run_id and latest_artifact_id:
         artifact_url = f"https://github.com/{repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
+        artifact_message = f"\n\n点击 {artifact_url} 查看当日star用户信息"
     else:
         logging.error("无法获取最新的artifact信息")
-        return
+        artifact_message = "\n\nartifact_url 获取失败"
     data = {
         "msg_type": "text",
         "content": {
-            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + f"\n\n点击 {artifact_url} 查看当日star用户信息"
+            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + artifact_message
         }
     }
     try:
