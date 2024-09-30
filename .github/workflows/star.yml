@@ -32,8 +32,8 @@ jobs:
 
     - name: Track Stargazers
       env:
-        GITHUB_OWNER: ${{ secrets.GITHUB_OWNER }}
-        GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+        REPO_OWNER: ${{ secrets.REPO_OWNER }}
+        REPO_NAME: ${{ secrets.REPO_NAME }}
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers file

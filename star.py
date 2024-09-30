@@ -12,8 +12,8 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 # 从环境变量获取仓库信息
-owner = os.getenv("GITHUB_OWNER")
-repo = os.getenv("GITHUB_REPO")
+owner = os.getenv("REPO_OWNER")
+repo = os.getenv("REPO_NAME")
 
 # 定义要抓取的总页数
 total_pages = 2
