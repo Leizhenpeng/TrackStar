@@ -131,7 +131,7 @@ def send_message_to_feishu(new_stargazers):
     headers = {
         "Content-Type": "application/json"
     }
-    artifact_url = f" https://api.github.com/repos/Leizhenpeng/TrackStar/actions/artifacts/1993683007"
+    artifact_url = f" https://api.github.com/repos/DDMeaqua/TrackStar/actions/artifacts/1993977558"
     data = {
         "msg_type": "text",
         "content": {
