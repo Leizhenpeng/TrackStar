@@ -103,10 +103,11 @@ def track_stargazers():
     
     # 读取之前保存的stargazers列表
     previous_stargazers = read_previous_stargazers('stargazers.json')
-    
+    logging.info(f"previous_stargazers: {previous_stargazers}")
+
     # 找出新增的stargazers
     new_stargazers = find_new_stargazers(previous_stargazers, current_stargazers)
-
+    logging.info(f"new_stargazers: {new_stargazers}")
     # 保存最新的stargazers列表到文件
     save_stargazers_to_file(current_stargazers, 'stargazers.json')
 
