@@ -2,7 +2,7 @@ name: Run Track Stars
 
 on:
   # schedule:
-  #   - cron: '*/20 * * * *'  # 每20秒运行一次
+  #   - cron: '*/20 * * * *'  # 每20分钟运行一次
   workflow_dispatch:
 
 jobs:
@@ -28,9 +28,10 @@ jobs:
       env:
         MY_GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: |
-        previous_run_id=$(curl -s -H "Authorization: token $MY_GITHUB_TOKEN" \
-          "https://api.github.com/repos/${{ github.repository }}/actions/runs?status=success&per_page=1" \
-          | jq -r '.workflow_runs[0].id')
+        response=$(curl -s -H "Authorization: token $MY_GITHUB_TOKEN" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runs?status=success&per_page=1")
+        echo "API Response: $response"
+        previous_run_id=$(echo $response | jq -r '.workflow_runs[0].id')
         echo "PREV_RUN_ID=$previous_run_id" >> $GITHUB_ENV
 
     - name: Download previous stargazers file
