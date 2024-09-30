@@ -66,7 +66,8 @@ jobs:
     - name: Download stargazers file
       uses: actions/download-artifact@v3
       with:
-        name: stargazers-${{ github.run_id }}
+        name: stargazers-${{ needs.track-stargazers.outputs.PREV_RUN_ID }}
+      continue-on-error: true  # 如果文件不存在，不要失败
 
     - name: List files for debugging
       if: always()
