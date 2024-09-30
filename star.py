@@ -83,16 +83,17 @@ def send_message_to_feishu(new_stargazers):
     headers = {
         "Content-Type": "application/json"
     }
+    artifact_url = f" https://api.github.com/repos/Leizhenpeng/TrackStar/actions/artifacts/1993683007"
     data = {
         "msg_type": "text",
         "content": {
-            "text": f"新增的stargazers: {', '.join(new_stargazers)}"
+            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user}" for user in new_stargazers]) + f"\n\n点击 {artifact_url} 查看当日star用户信息"
         }
     }
     try:
         response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
         response.raise_for_status()
-        logging.info("消��已发送到Feishu")
+        logging.info("消息已发送到Feishu")
     except requests.RequestException as e:
         logging.error(f"发送消息到Feishu时发生错误: {e}")
 
