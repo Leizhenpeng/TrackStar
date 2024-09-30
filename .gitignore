@@ -1,5 +1,6 @@
-
 venv/
 .csv
 .env
 *.csv
+stargazers.json
+.venv

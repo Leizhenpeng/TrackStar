@@ -1,6 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import logging
+import json
+from dotenv import load_dotenv
+
+# 加载 .env 文件中的环境变量
+load_dotenv()
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
 
 # 从环境变量获取仓库信息
 owner = os.getenv("GITHUB_OWNER")
@@ -9,90 +18,104 @@ repo = os.getenv("GITHUB_REPO")
 # 定义要抓取的总页数
 total_pages = 2
 
-# Cloudflare Workers KV URL
-kv_url = "https://github-star-track.helloworld-gpt.workers.dev/stargazers"
-
 # 超时时间（秒）
 timeout_seconds = 10
+
+# Feishu Webhook URL
+feishu_webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/5a5ca508-cecc-4a8a-a997-474f9c5658ac"
+
+# 函数：发送HTTP请求并处理响应
+def send_request(url):
+    try:
+        response = requests.get(url, timeout=timeout_seconds)
+        response.raise_for_status()
+        return response
+    except requests.RequestException as e:
+        logging.error(f"请求 {url} 时发生错误: {e}")
+        return None
 
 # 函数：获取当前的stargazers列表
 def fetch_stargazers():
     stargazers = []
     for page in range(1, total_pages + 1):
         url = f'https://github.com/{owner}/{repo}/stargazers?page={page}'
-        try:
-            response = requests.get(url, timeout=timeout_seconds)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                ol = soup.find('ol', class_='d-block d-md-flex flex-wrap gutter list-style-none')
-
-                if ol:
-                    lis = ol.find_all('li', class_='col-md-4 mb-3')
-
-                    for li in lis:
-                        a_tag = li.find('h2', class_='h4 mb-1').find('a')
-                        if a_tag:
-                            login = a_tag.text.strip()
-                            stargazers.append(login)
-                            print(f"第 {page} 页: {login}")
-                else:
-                    print(f"第 {page} 页没有找到有效的内容")
+        response = send_request(url)
+        if response:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            ol = soup.find('ol', class_='d-block d-md-flex flex-wrap gutter list-style-none')
+            if ol:
+                lis = ol.find_all('li', class_='col-md-4 mb-3')
+                for li in lis:
+                    a_tag = li.find('h2', class_='h4 mb-1').find('a')
+                    if a_tag:
+                        login = a_tag.text.strip()
+                        stargazers.append(login)
+                        logging.info(f"第 {page} 页: {login}")
             else:
-                print(f"获取第 {page} 页失败，状态码: {response.status_code}")
-        except requests.RequestException as e:
-            print(f"获取第 {page} 页时发生错误: {e}")
+                logging.warning(f"第 {page} 页没有找到有效的内容")
     return stargazers
 
-# 函数：从 Cloudflare Workers KV 获取之前保存的stargazers列表
-def read_previous_stargazers():
-    try:
-        response = requests.get(kv_url, timeout=timeout_seconds)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"获取之前的stargazers失败，状态码: {response.status_code}")
-            return []
-    except requests.RequestException as e:
-        print(f"获取之前的stargazers时发生错误: {e}")
+# 函数：从文件获取之前保存的stargazers列表
+def read_previous_stargazers(filename):
+    if os.path.exists(filename):
+        with open(filename, 'r') as f:
+            return json.load(f)
+    else:
+        logging.warning(f"文件 {filename} 不存在，返回空列表")
         return []
 
-# 函数：保存stargazers列表到 Cloudflare Workers KV
-def save_stargazers_to_kv(stargazers):
-    try:
-        response = requests.post(kv_url, json=stargazers, timeout=timeout_seconds)
-        if response.status_code == 200:
-            print("Stargazers 已保存到 KV")
-        else:
-            print(f"保存stargazers到 KV 失败，状态码: {response.status_code}")
-    except requests.RequestException as e:
-        print(f"保存stargazers到 KV 时发生错误: {e}")
+# 函数：保存stargazers列表到文件
+def save_stargazers_to_file(stargazers, filename):
+    # 只保存最后三个stargazers
+    stargazers = stargazers[-3:]
+    with open(filename, 'w') as f:
+        json.dump(stargazers, f)
+    logging.info(f"Stargazers 已保存到文件 {filename}")
 
 # 函数：对比新旧stargazers，找出新增的stargazers
 def find_new_stargazers(old_stargazers, new_stargazers):
     return list(set(new_stargazers) - set(old_stargazers))
 
+# 函数：发送消息到Feishu
+def send_message_to_feishu(new_stargazers):
+    headers = {
+        "Content-Type": "application/json"
+    }
+    data = {
+        "msg_type": "text",
+        "content": {
+            "text": f"新增的stargazers: {', '.join(new_stargazers)}"
+        }
+    }
+    try:
+        response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
+        response.raise_for_status()
+        logging.info("消息已发送到Feishu")
+    except requests.RequestException as e:
+        logging.error(f"发送消息到Feishu时发生错误: {e}")
+
 # 主函数：获取和对比stargazers
 def track_stargazers():
-    print("开始获取stargazers...")
+    logging.info("开始获取stargazers...")
     
     # 获取当前stargazers列表
     current_stargazers = fetch_stargazers()
     
     # 读取之前保存的stargazers列表
-    previous_stargazers = read_previous_stargazers()
+    previous_stargazers = read_previous_stargazers('stargazers.json')
     
     # 找出新增的stargazers
     new_stargazers = find_new_stargazers(previous_stargazers, current_stargazers)
 
-    # 保存最新的stargazers列表到 KV（覆盖保存全部数据）
-    save_stargazers_to_kv(current_stargazers)
+    # 保存最新的stargazers列表到文件
+    save_stargazers_to_file(current_stargazers, 'stargazers.json')
 
     if new_stargazers:
-        # 如果有新增的stargazers，打印新增的stargazers
-        print(f"新增的stargazers: {new_stargazers}")
+        # 如果有新增的stargazers，打印并发送消息到Feishu
+        logging.info(f"新增的stargazers: {new_stargazers}")
+        send_message_to_feishu(new_stargazers)
     else:
-        print("没有新的stargazers")
+        logging.info("没有新的stargazers")
 
 # 立即执行一次
 track_stargazers()
