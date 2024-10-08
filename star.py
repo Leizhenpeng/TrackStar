@@ -102,32 +102,70 @@ FIELDNAMES = [
     'created_at', 'updated_at'
 ]
 
+FIELDNAME_TO_CHINESE = {
+    'login': '用户名',
+    'id': '用户ID',
+    'node_id': '节点ID',
+    'avatar_url': '头像URL',
+    'url': '用户URL',
+    'html_url': '个人主页URL',
+    'followers_url': '关注者URL',
+    'following_url': '关注的用户URL',
+    'gists_url': 'Gist URL',
+    'starred_url': '点赞的项目URL',
+    'subscriptions_url': '订阅URL',
+    'organizations_url': '组织URL',
+    'repos_url': '仓库URL',
+    'events_url': '事件URL',
+    'received_events_url': '收到的事件URL',
+    'type': '用户类型',
+    'site_admin': '是否为管理员',
+    'name': '姓名',
+    'location': '位置',
+    'bio': '简介',
+    'public_repos': '公开仓库数',
+    'public_gists': '公开Gist数',
+    'followers': '关注者数',
+    'following': '关注数',
+    'created_at': '创建时间',
+    'updated_at': '更新时间'
+}
+
+
 # 函数：保存stargazers详细信息到CSV文件
 def save_stargazers_details_to_csv(stargazers_details, filename):
+    # 将 FIELDNAMES 转换为中文标题
+    chinese_fieldnames = [FIELDNAME_TO_CHINESE.get(field, field) for field in FIELDNAMES]
+    
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(file, fieldnames=chinese_fieldnames)
         writer.writeheader()
+        
         for user in stargazers_details:
-            filtered_user = {key: user[key] for key in FIELDNAMES if key in user}
+            # 创建一个新的字典，将原始字段名的值映射到中文标题的键
+            filtered_user = {FIELDNAME_TO_CHINESE.get(key, key): user[key] for key in FIELDNAMES if key in user}
             writer.writerow(filtered_user)
 
 # 函数：更新total.csv文件
 def update_total_csv(new_stargazers_details, csv_filename):
     file_exists = os.path.isfile(csv_filename)
     
+    # 将 FIELDNAMES 转换为中文标题
+    chinese_fieldnames = [FIELDNAME_TO_CHINESE.get(field, field) for field in FIELDNAMES]
+    
     with open(csv_filename, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(file, fieldnames=chinese_fieldnames)
         
         if not file_exists:
             writer.writeheader()
         
         for user in new_stargazers_details:
-            filtered_user = {key: user[key] for key in FIELDNAMES if key in user}
+            filtered_user = {FIELDNAME_TO_CHINESE.get(key, key): user[key] for key in FIELDNAMES if key in user}
             writer.writerow(filtered_user)
 
 # 函数：获取最新的运行ID和artifact ID
 def get_latest_artifact_info():
-    url = f'https://api.github.com/repos/{repo}/actions/runs'
+    url = f'https://api.github.com/repos/Leizhenpeng/TrackStar/actions/runs'
     response = send_request(url)
     if response:
         runs = response.json().get('workflow_runs', [])
@@ -149,7 +187,7 @@ def send_message_to_feishu(new_stargazers):
     }
     latest_run_id, latest_artifact_id = get_latest_artifact_info()
     if latest_run_id and latest_artifact_id:
-        artifact_url = f"https://github.com/{repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
+        artifact_url = f"https://github.com/Leizhenpeng/TrackStar/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
         artifact_message = f"\n\n点击 {artifact_url} 查看当日star用户信息"
     else:
         logging.error("无法获取最新的artifact信息")
@@ -160,12 +198,13 @@ def send_message_to_feishu(new_stargazers):
             "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + artifact_message
         }
     }
-    try:
-        response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
-        response.raise_for_status()
-        logging.info("消息已发送到Feishu")
-    except requests.RequestException as e:
-        logging.error(f"发送消息到Feishu时发生错误: {e}")
+    logging.info(f"test data: {data}")
+    # try:
+    #     response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
+    #     response.raise_for_status()
+    #     logging.info("消息已发送到Feishu")
+    # except requests.RequestException as e:
+    #     logging.error(f"发送消息到Feishu时发生错误: {e}")
 
 # 主函数：获取和对比stargazers
 def track_stargazers():
