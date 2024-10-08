@@ -198,13 +198,12 @@ def send_message_to_feishu(new_stargazers):
             "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + artifact_message
         }
     }
-    logging.info(f"test data: {data}")
-    # try:
-    #     response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
-    #     response.raise_for_status()
-    #     logging.info("消息已发送到Feishu")
-    # except requests.RequestException as e:
-    #     logging.error(f"发送消息到Feishu时发生错误: {e}")
+    try:
+        response = requests.post(feishu_webhook_url, headers=headers, json=data, timeout=timeout_seconds)
+        response.raise_for_status()
+        logging.info("消息已发送到Feishu")
+    except requests.RequestException as e:
+        logging.error(f"发送消息到Feishu时发生错误: {e}")
 
 # 主函数：获取和对比stargazers
 def track_stargazers():
