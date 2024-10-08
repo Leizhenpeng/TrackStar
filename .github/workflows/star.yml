@@ -2,7 +2,7 @@ name: Run Track Stars
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小时一次
+    - cron: '0 0 * * *'  # 每天一次
   workflow_dispatch:
 
 jobs:
