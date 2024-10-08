@@ -165,7 +165,7 @@ def update_total_csv(new_stargazers_details, csv_filename):
 
 # 函数：获取最新的运行ID和artifact ID
 def get_latest_artifact_info():
-    url = f'https://api.github.com/repos/Leizhenpeng/TrackStar/actions/runs'
+    url = f'https://api.github.com/repos/DDMeaqua/TrackStar/actions/runs'
     response = send_request(url)
     if response:
         runs = response.json().get('workflow_runs', [])
