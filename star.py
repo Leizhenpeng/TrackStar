@@ -187,7 +187,7 @@ def send_message_to_feishu(new_stargazers):
     }
     latest_run_id, latest_artifact_id = get_latest_artifact_info()
     if latest_run_id and latest_artifact_id:
-        artifact_url = f"https://github.com/Leizhenpeng/TrackStar/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
+        artifact_url = f"https://github.com/DDMeaqua/TrackStar/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
         artifact_message = f"\n\n点击 {artifact_url} 查看当日star用户信息"
     else:
         logging.error("无法获取最新的artifact信息")
