@@ -221,6 +221,7 @@ def track_stargazers():
     logging.info(f"new_stargazers_usernames: {new_stargazers_usernames}")
 
     # 获取新增stargazers的详细信息
+    logging.info(f"token: {access_token}")
     new_stargazers_details = []
     for username in new_stargazers_usernames:
         user_details = fetch_user_details(username)
