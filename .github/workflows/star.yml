@@ -2,7 +2,7 @@ name: Run Track Stars
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小时一次
+    - cron: '0 0 * * *'  # 每天一次
   workflow_dispatch:
 
 jobs:
@@ -72,6 +72,7 @@ jobs:
       env:
         TARGET_REPO: ${{ secrets.TARGET_REPO }}
         FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers and CSV files
