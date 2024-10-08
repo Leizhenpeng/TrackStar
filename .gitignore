@@ -4,3 +4,6 @@ venv/
 *.csvw
 stargazers.json
 .venv
+new.csv
+total.csv
+

@@ -18,8 +18,9 @@ repo = os.getenv("TARGET_REPO")
 access_token = os.getenv("ACCESS_TOKEN")
 feishu_webhook_url = os.getenv("FEISHU_WEBHOOK")
 
-# 定义要抓取的总页数
-total_pages = 2
+# 修改这些常量
+FIRST_RUN_MAX_PAGES = 2  # 首次运行时的最大页数
+REGULAR_MAX_PAGES = 10   # 常规运行时的最大页数
 
 # 超时时间（秒）
 timeout_seconds = 10
@@ -34,10 +35,21 @@ def send_request(url):
         logging.error(f"请求 {url} 时发生错误: {e}")
         return None
 
-# 函数：获取当前的stargazers列表
-def fetch_stargazers():
+# 新增函数：获取历史 stargazers 中的最后几个用户
+def get_last_stargazers(stargazers, count=3):
+    return stargazers[-count:] if len(stargazers) >= count else stargazers
+
+# 修改 fetch_stargazers 函数
+def fetch_stargazers(previous_stargazers):
     stargazers = []
-    for page in range(1, total_pages + 1):
+    last_known_stargazers = get_last_stargazers(previous_stargazers)
+    reached_known_stargazers = False
+    page = 1
+    
+    # 根据是否有历史用户来决定使用哪个最大页数
+    max_pages = FIRST_RUN_MAX_PAGES if not previous_stargazers else REGULAR_MAX_PAGES
+
+    while page <= max_pages and not reached_known_stargazers:
         url = f'https://github.com/{repo}/stargazers?page={page}'
         response = send_request(url)
         if response:
@@ -51,15 +63,35 @@ def fetch_stargazers():
                         login = a_tag.text.strip()
                         stargazers.append(login)
                         logging.info(f"第 {page} 页: {login}")
+                        if login in last_known_stargazers:
+                            reached_known_stargazers = True
+                            break
             else:
                 logging.warning(f"第 {page} 页没有找到有效的内容")
-    return stargazers
+                break
+        else:
+            break
+        page += 1
+
+    if page > max_pages:
+        logging.warning(f"已达到最大页数限制 ({max_pages} 页)，可能还有更多 stargazers")
+    
+    return stargazers, page > max_pages
 
 # 函数：从文件获取之前保存的stargazers列表
 def read_previous_stargazers(filename):
     if os.path.exists(filename):
-        with open(filename, 'r') as f:
-            return json.load(f)
+        try:
+            with open(filename, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+                else:
+                    logging.warning(f"文件 {filename} 为空，返回空列表")
+                    return []
+        except json.JSONDecodeError:
+            logging.warning(f"文件 {filename} 内容格式不正确，返回空列表")
+            return []
     else:
         logging.warning(f"文件 {filename} 不存在，返回空列表")
         return []
@@ -142,22 +174,37 @@ def get_latest_artifact_info():
                     return latest_run_id, latest_artifact_id
     return None, None
 
-# 函数：发送消息到Feishu
-def send_message_to_feishu(new_stargazers):
+# 修改 send_message_to_feishu 函数
+def send_message_to_feishu(new_stargazers, reached_max_pages):
     headers = {
         "Content-Type": "application/json"
     }
     latest_run_id, latest_artifact_id = get_latest_artifact_info()
     if latest_run_id and latest_artifact_id:
         artifact_url = f"https://github.com/{repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
-        artifact_message = f"\n\n点击 {artifact_url} 查看当日star用户信息"
+        artifact_message = f"\n\n[点击此处查看当日star用户信息]({artifact_url})"
     else:
         logging.error("无法获取最新的artifact信息")
         artifact_message = "\n\nartifact_url 获取失败"
+    
+    stargazers_list = "\n".join([f"- [{user['login']}](https://github.com/{user['login']}) (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers])
+    
+    max_pages_warning = "\n\n**注意：** 已达到最大页数限制，可能还有更多新的 stargazers。" if reached_max_pages else ""
+    
+    repo_link = f"https://github.com/{repo}/stargazers"
+    
     data = {
-        "msg_type": "text",
-        "content": {
-            "text": f"今天有{len(new_stargazers)}个人点赞了仓库,\n" + "\n".join([f"https://github.com/{user['login']} (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers]) + artifact_message
+        "msg_type": "interactive",
+        "card": {
+            "config": {
+                "wide_screen_mode": True
+            },
+            "elements": [
+                {
+                    "tag": "markdown",
+                    "content": f"今天有**{len(new_stargazers)}**个人点赞了[仓库]({repo_link})：\n\n{stargazers_list}{artifact_message}{max_pages_warning}"
+                }
+            ]
         }
     }
     try:
@@ -167,17 +214,17 @@ def send_message_to_feishu(new_stargazers):
     except requests.RequestException as e:
         logging.error(f"发送消息到Feishu时发生错误: {e}")
 
-# 主函数：获取和对比stargazers
+# 修改主函数 track_stargazers
 def track_stargazers():
     logging.info("开始获取stargazers...")
-    
-    # 获取当前stargazers列表
-    current_stargazers = fetch_stargazers()
     
     # 读取之前保存的stargazers列表
     previous_stargazers = read_previous_stargazers('stargazers.json')
     logging.info(f"previous_stargazers: {previous_stargazers}")
 
+    # 获取当前stargazers列表
+    current_stargazers, reached_max_pages = fetch_stargazers(previous_stargazers)
+    
     # 找出新增的stargazers
     new_stargazers_usernames = find_new_stargazers(previous_stargazers, current_stargazers)
     logging.info(f"new_stargazers_usernames: {new_stargazers_usernames}")
@@ -196,7 +243,7 @@ def track_stargazers():
     if new_stargazers_details:
         # 如果有新增的stargazers，打印并发送消息到Feishu
         logging.info(f"新增的stargazers: {new_stargazers_details}")
-        send_message_to_feishu(new_stargazers_details)
+        send_message_to_feishu(new_stargazers_details, reached_max_pages)
         
         # 保存新增的stargazers到new.csv
         save_stargazers_details_to_csv(new_stargazers_details, 'new.csv')
