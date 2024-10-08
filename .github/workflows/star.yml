@@ -72,6 +72,7 @@ jobs:
       env:
         TARGET_REPO: ${{ secrets.TARGET_REPO }}
         FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers and CSV files
