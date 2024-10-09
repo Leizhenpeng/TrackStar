@@ -249,7 +249,9 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
     
     max_pages_warning = "\n\n**注意：** 已达到最大页数限制，可能还有更多新的 stargazers。" if reached_max_pages else ""
     
-    repo_link = f"https://github.com/{current_repo}/stargazers" if current_repo else "#"
+    repo_link = f"https://github.com/{repo}/stargazers" if current_repo else "#"
+    
+    today_date = datetime.now().strftime("%Y年%m月%d日")
     
     data = {
         "msg_type": "interactive",
@@ -260,7 +262,11 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
             "elements": [
                 {
                     "tag": "markdown",
-                    "content": f"今天有**{len(new_stargazers)}**个人点赞了[仓库]({repo_link})：\n\n{stargazers_list}{artifact_message}{max_pages_warning}"
+                    "content": f"**日期：{today_date}**\n"
+                               f"**仓库：[{repo}]({repo_link})**\n"
+                               f"**今日新增 Star 数：{len(new_stargazers)}**\n\n"
+                               
+                               f"**新增 Star 用户详情：**\n\n{stargazers_list}{artifact_message}{max_pages_warning}"
                 }
             ]
         }
