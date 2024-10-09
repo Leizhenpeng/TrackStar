@@ -25,6 +25,19 @@ REGULAR_MAX_PAGES = 10   # 常规运行时的最大页数
 # 超时时间（秒）
 timeout_seconds = 10
 
+# 修改获取当前仓库信息的函数
+def get_current_repo():
+    # 首先检查是否在 GitHub Actions 环境中
+    if 'GITHUB_REPOSITORY' in os.environ:
+        return os.environ['GITHUB_REPOSITORY']
+    else:
+        # 如果不在 GitHub Actions 环境中，使用 TARGET_REPO 环境变量
+        return os.getenv('TARGET_REPO')
+
+# 新增函数：检查是否在 GitHub Actions 环境中运行
+def is_github_actions():
+    return 'GITHUB_ACTIONS' in os.environ
+
 # 函数：发送HTTP请求并处理响应
 def send_request(url):
     try:
@@ -139,17 +152,17 @@ FIELDNAME_TO_CHINESE = {
     'id': '用户ID',
     'node_id': '节点ID',
     'avatar_url': '头像URL',
-    'url': '用户URL',
+    # 'url': '用户URL',
     'html_url': '个人主页URL',
-    'followers_url': '关注者URL',
-    'following_url': '关注的用户URL',
-    'gists_url': 'Gist URL',
-    'starred_url': '点赞的项目URL',
-    'subscriptions_url': '订阅URL',
-    'organizations_url': '组织URL',
-    'repos_url': '仓库URL',
-    'events_url': '事件URL',
-    'received_events_url': '收到的事件URL',
+    # 'followers_url': '关注者URL',
+    # 'following_url': '关注的用户URL',
+    # 'gists_url': 'Gist URL',
+    # 'starred_url': '点赞的项目URL',
+    # 'subscriptions_url': '订阅URL',
+    # 'organizations_url': '组织URL',
+    # 'repos_url': '仓库URL',
+    # 'events_url': '事件URL',
+    # 'received_events_url': '收到的事件URL',
     'type': '用户类型',
     'site_admin': '是否为管理员',
     'name': '姓名',
@@ -197,7 +210,12 @@ def update_total_csv(new_stargazers_details, csv_filename):
 
 # 函数：获取最新的运行ID和artifact ID
 def get_latest_artifact_info():
-    url = f'https://api.github.com/repos/DDMeaqua/TrackStar/actions/runs'
+    current_repo = get_current_repo()
+    if not current_repo:
+        logging.error("无法获取当前仓库信息")
+        return None, None
+
+    url = f'https://api.github.com/repos/{current_repo}/actions/runs'
     response = send_request(url)
     if response:
         runs = response.json().get('workflow_runs', [])
@@ -217,19 +235,22 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
     headers = {
         "Content-Type": "application/json"
     }
-    latest_run_id, latest_artifact_id = get_latest_artifact_info()
-    if latest_run_id and latest_artifact_id:
-        artifact_url = f"https://github.com/{repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
-        artifact_message = f"\n\n[点击此处查看当日star用户信息]({artifact_url})"
-    else:
-        logging.error("无法获取最新的artifact信息")
-        artifact_message = "\n\nartifact_url 获取失败"
+    current_repo = get_current_repo()
+    
+    artifact_message = ""
+    if is_github_actions():
+        latest_run_id, latest_artifact_id = get_latest_artifact_info()
+        if current_repo and latest_run_id and latest_artifact_id:
+            artifact_url = f"https://github.com/{current_repo}/actions/runs/{latest_run_id}/artifacts/{latest_artifact_id}"
+            artifact_message = f"\n\n[点击此处查看当日star用户信息]({artifact_url})"
+        else:
+            logging.error("无法获取最新的artifact信息或仓库信息")
     
     stargazers_list = "\n".join([f"- [{user['login']}](https://github.com/{user['login']}) (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers])
     
     max_pages_warning = "\n\n**注意：** 已达到最大页数限制，可能还有更多新的 stargazers。" if reached_max_pages else ""
     
-    repo_link = f"https://github.com/{repo}/stargazers"
+    repo_link = f"https://github.com/{current_repo}/stargazers" if current_repo else "#"
     
     data = {
         "msg_type": "interactive",
@@ -268,7 +289,6 @@ def track_stargazers():
     logging.info(f"new_stargazers_usernames: {new_stargazers_usernames}")
 
     # 获取新增stargazers的详细信息
-    logging.info(f"token: {access_token}")
     new_stargazers_details = []
     for username in new_stargazers_usernames:
         user_details = fetch_user_details(username)
@@ -293,4 +313,5 @@ def track_stargazers():
         logging.info("没有新的stargazers")
 
 # 立即执行一次
-track_stargazers()
+if __name__ == "__main__":
+    track_stargazers()
