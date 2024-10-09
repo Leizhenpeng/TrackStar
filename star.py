@@ -6,6 +6,10 @@ import json
 import csv
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+import asyncio
+import aiohttp
+from aiohttp import ClientSession
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # 加载 .env 文件中的环境变量
 load_dotenv()
@@ -24,6 +28,33 @@ REGULAR_MAX_PAGES = 10   # 常规运行时的最大页数
 
 # 超时时间（秒）
 timeout_seconds = 10
+
+# 设置并发数和重试次数
+CONCURRENCY = 10
+MAX_RETRIES = 3
+
+# 异步重试装饰器
+@retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, min=4, max=10))
+async def fetch_with_retry(session, url):
+    async with session.get(url, headers={'Authorization': f'token {access_token}'}) as response:
+        response.raise_for_status()
+        return await response.json()
+
+# 异步获取用户详细信息
+async def fetch_user_details_async(session, username):
+    url = f'https://api.github.com/users/{username}'
+    try:
+        return await fetch_with_retry(session, url)
+    except Exception as e:
+        logging.error(f"获取用户 {username} 详细信息失败: {e}")
+        return None
+
+# 并发获取多个用户的详细信息
+async def fetch_multiple_user_details(usernames):
+    async with ClientSession() as session:
+        tasks = [fetch_user_details_async(session, username) for username in usernames]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    return [result for result in results if result is not None and not isinstance(result, Exception)]
 
 # 修改获取当前仓库信息的函数
 def get_current_repo():
@@ -59,7 +90,7 @@ def fetch_stargazers(previous_stargazers):
     reached_known_stargazers = False
     page = 1
     
-    # 根据是否有历史用户来决定使用哪个最大页数
+    # 根据是否有历史用户来决定使用哪个最页数
     max_pages = FIRST_RUN_MAX_PAGES if not previous_stargazers else REGULAR_MAX_PAGES
 
     while page <= max_pages and not reached_known_stargazers:
@@ -137,35 +168,11 @@ def fetch_user_details(username):
     else:
         return None
 
-
-FIELDNAMES = [
-    'login', 'id', 'node_id', 'avatar_url', 'url', 'html_url', 
-    'followers_url', 'following_url', 'gists_url', 'starred_url', 
-    'subscriptions_url', 'organizations_url', 'repos_url', 'events_url', 
-    'received_events_url', 'type', 'site_admin', 'name', 'location', 
-    'bio', 'public_repos', 'public_gists', 'followers', 'following', 
-    'created_at', 'updated_at'
-]
-
-FIELDNAME_TO_CHINESE = {
+# 删除 FIELDNAMES，只保留中文字段名的字典
+CHINESE_FIELDNAMES = {
     'login': '用户名',
-    'id': '用户ID',
-    'node_id': '节点ID',
-    'avatar_url': '头像URL',
-    # 'url': '用户URL',
-    'html_url': '个人主页URL',
-    # 'followers_url': '关注者URL',
-    # 'following_url': '关注的用户URL',
-    # 'gists_url': 'Gist URL',
-    # 'starred_url': '点赞的项目URL',
-    # 'subscriptions_url': '订阅URL',
-    # 'organizations_url': '组织URL',
-    # 'repos_url': '仓库URL',
-    # 'events_url': '事件URL',
-    # 'received_events_url': '收到的事件URL',
-    'type': '用户类型',
-    'site_admin': '是否为管理员',
     'name': '姓名',
+    "html_url": "用户主页",
     'location': '位置',
     'bio': '简介',
     'public_repos': '公开仓库数',
@@ -176,36 +183,28 @@ FIELDNAME_TO_CHINESE = {
     'updated_at': '更新时间'
 }
 
-
-# 函数：保存stargazers详细信息到CSV文件
+# 修改 save_stargazers_details_to_csv 函数
 def save_stargazers_details_to_csv(stargazers_details, filename):
-    # 将 FIELDNAMES 转换为中文标题
-    chinese_fieldnames = [FIELDNAME_TO_CHINESE.get(field, field) for field in FIELDNAMES]
-    
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=chinese_fieldnames)
+        writer = csv.DictWriter(file, fieldnames=CHINESE_FIELDNAMES.values())
         writer.writeheader()
         
         for user in stargazers_details:
-            # 创建一个新的字典，将原始字段名的值映射到中文标题的键
-            filtered_user = {FIELDNAME_TO_CHINESE.get(key, key): user[key] for key in FIELDNAMES if key in user}
+            filtered_user = {CHINESE_FIELDNAMES[key]: user[key] for key in CHINESE_FIELDNAMES if key in user}
             writer.writerow(filtered_user)
 
-# 函数：更新total.csv文件
+# 修改 update_total_csv 函数
 def update_total_csv(new_stargazers_details, csv_filename):
     file_exists = os.path.isfile(csv_filename)
     
-    # 将 FIELDNAMES 转换为中文标题
-    chinese_fieldnames = [FIELDNAME_TO_CHINESE.get(field, field) for field in FIELDNAMES]
-    
     with open(csv_filename, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=chinese_fieldnames)
+        writer = csv.DictWriter(file, fieldnames=CHINESE_FIELDNAMES.values())
         
         if not file_exists:
             writer.writeheader()
         
         for user in new_stargazers_details:
-            filtered_user = {FIELDNAME_TO_CHINESE.get(key, key): user[key] for key in FIELDNAMES if key in user}
+            filtered_user = {CHINESE_FIELDNAMES[key]: user[key] for key in CHINESE_FIELDNAMES if key in user}
             writer.writerow(filtered_user)
 
 # 函数：获取最新的运行ID和artifact ID
@@ -277,37 +276,23 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
 def track_stargazers():
     logging.info("开始获取stargazers...")
     
-    # 读取之前保存的stargazers列表
     previous_stargazers = read_previous_stargazers('stargazers.json')
     logging.info(f"previous_stargazers: {previous_stargazers}")
 
-    # 获取当前stargazers列表
     current_stargazers, reached_max_pages = fetch_stargazers(previous_stargazers)
-    
-    # 找出新增的stargazers
     new_stargazers_usernames = find_new_stargazers(previous_stargazers, current_stargazers)
     logging.info(f"new_stargazers_usernames: {new_stargazers_usernames}")
 
-    # 获取新增stargazers的详细信息
-    new_stargazers_details = []
-    for username in new_stargazers_usernames:
-        user_details = fetch_user_details(username)
-        if user_details:
-            new_stargazers_details.append(user_details)
+    # 使用异步方法获取新增stargazers的详细信息
+    new_stargazers_details = asyncio.run(fetch_multiple_user_details(new_stargazers_usernames))
     logging.info(f"new_stargazers_details: {new_stargazers_details}")
 
-    # 保存最新的stargazers列表到文件
     save_stargazers_to_file(current_stargazers, 'stargazers.json')
 
     if new_stargazers_details:
-        # 如果有新增的stargazers，打印并发送消息到Feishu
         logging.info(f"新增的stargazers: {new_stargazers_details}")
         send_message_to_feishu(new_stargazers_details, reached_max_pages)
-        
-        # 保存新增的stargazers到new.csv
         save_stargazers_details_to_csv(new_stargazers_details, 'new.csv')
-        
-        # 更新total.csv
         update_total_csv(new_stargazers_details, 'total.csv')
     else:
         logging.info("没有新的stargazers")

@@ -2,7 +2,7 @@ name: Run Track Stars
 
 on:
   schedule:
-    - cron: '0 3,10 * * *'  # 每天北京时间 11:00 和 18:00 运行 ;3,10 表示在 UTC 时间的第 3 小时和第 10 小时
+    - cron: '0 3 * * *'  # 每天 UTC 时间 3:00 运行，相当于北京时间 11:00
   workflow_dispatch:
 
 jobs:
