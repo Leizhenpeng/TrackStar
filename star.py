@@ -28,7 +28,7 @@ personal_base_token = os.environ['PERSONAL_BASE_TOKEN']
 feishu_bitable_url = os.getenv("FEISHU_BITABLE_URL")
 
 # 修改这些常量
-FIRST_RUN_MAX_PAGES = 2  # 首次运行时的最大页数
+FIRST_RUN_MAX_PAGES = 4  # 首次运行时的最大页数
 REGULAR_MAX_PAGES = 10   # 常规运行时的最大页数
 SHOW_STAR_NUM = 5  # 显示的star数量
 
