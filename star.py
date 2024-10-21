@@ -39,6 +39,8 @@ timeout_seconds = 10
 CONCURRENCY = 10
 MAX_RETRIES = 3
 
+
+
 # 异步重试装饰器
 @retry(stop=stop_after_attempt(MAX_RETRIES), wait=wait_exponential(multiplier=1, min=4, max=10))
 async def fetch_with_retry(session, url):
@@ -252,6 +254,7 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
         else:
             logging.error("无法获取最新的artifact信息或仓库信息")
     
+
     stargazers_list = "\n".join([f"- [{user['login']}](https://github.com/{user['login']}) (关注{user['followers']}人, 被关注{user['following']}人, 公开了{user['public_repos']}个仓库)" for user in new_stargazers[:SHOW_STAR_NUM]])
     
     max_pages_warning = "\n\n**注意：** 已达到最大页数限制，可能还有更多新的 stargazers。" if reached_max_pages else ""
@@ -297,7 +300,7 @@ def send_message_to_feishu(new_stargazers, reached_max_pages):
 
 def  batch_add_records_to_bitable(fields):
     """
-    新增一条数据到飞书多维表格
+    新增多条数据到飞书多维表格
 
     :param fields: dict, 包含要插入的字段名和值
     :return: None
@@ -312,6 +315,7 @@ def  batch_add_records_to_bitable(fields):
     feishu_bitable_table_id = feishu_bitable_url[table_start_index:base_end_index]
     print(feishu_bitable_table_id)
 
+
     records = []
     for user in fields:
         records.append({
@@ -325,8 +329,9 @@ def  batch_add_records_to_bitable(fields):
                 '公开Gist数': str(user['public_gists']),
                 '关注者数': str(user['followers']),
                 '关注数': str(user['following']),
-                '创建时间': str(user['created_at']),
-                '更新时间': str(user['updated_at'])
+                '创建时间': int(user['created_at'].timestamp() * 1000),
+                '更新时间': int(user['updated_at'].timestamp() * 1000),
+                '收集时间': int(datetime.now().timestamp() * 1000)
             }
         })
 
@@ -373,20 +378,26 @@ def track_stargazers():
 
         # 使用异步方法获取新增stargazers的详细信息
         new_stargazers_details = asyncio.run(fetch_multiple_user_details(new_stargazers_usernames))
-        logging.info(f"new_stargazers_details: {new_stargazers_details}")
+        # 根据分数进行排序 分数 = 关注者数 * 1 + 关注数 * 10 + 公开仓库数 * 2
+        sorted_stargazers = sorted(
+        new_stargazers_details,
+        key=lambda user: user['followers'] * 1 + user['following'] * 10 + user['public_repos'] * 2,
+        reverse=True
+        )
+        logging.info(f"new_stargazers_details: {sorted_stargazers}")
 
         save_stargazers_to_file(current_stargazers, 'stargazers.json')
 
         if new_stargazers_details:
-            logging.info(f"新增的stargazers: {new_stargazers_details}")
+            logging.info(f"新增的stargazers: {sorted_stargazers}")
             
             # 批量添加到飞书多维表格
-            success = batch_add_records_to_bitable(new_stargazers_details)
+            success = batch_add_records_to_bitable(sorted_stargazers)
             if not success:
                 logging.error("批量添加数据到飞书多维表格失败")
             
             # 发送飞书消息
-            send_message_to_feishu(new_stargazers_details, reached_max_pages)
+            send_message_to_feishu(sorted_stargazers, reached_max_pages)
             
             save_stargazers_details_to_csv(new_stargazers_details, 'new.csv')
             update_total_csv(new_stargazers_details, 'total.csv')
