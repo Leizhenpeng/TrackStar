@@ -22,6 +22,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install requests beautifulsoup4 python-dotenv aiohttp tenacity  # 添加 aiohttp 和 tenacity
+        pip install https://lf3-static.bytednsdoc.com/obj/eden-cn/lmeh7phbozvhoz/base-open-sdk/baseopensdk-0.0.13-py3-none-any.whl
 
     - name: Get previous run ID
       id: get_previous_run_id
@@ -73,6 +74,8 @@ jobs:
         TARGET_REPO: ${{ secrets.TARGET_REPO }}
         FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        PERSONAL_BASE_TOKEN: ${{ secrets.PERSONAL_BASE_TOKEN }}
+        FEISHU_BITABLE_URL: ${{ secrets.FEISHU_BITABLE_URL }}
       run: python star.py  # 替换为你的脚本文件名
 
     - name: Upload stargazers and CSV files
