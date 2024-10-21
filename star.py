@@ -329,9 +329,10 @@ def  batch_add_records_to_bitable(fields):
                 '公开Gist数': str(user['public_gists']),
                 '关注者数': str(user['followers']),
                 '关注数': str(user['following']),
-                '创建时间': int(user['created_at'].timestamp() * 1000),
-                '更新时间': int(user['updated_at'].timestamp() * 1000),
-                '收集时间': int(datetime.now().timestamp() * 1000)
+                '评分': str(user['grade']),
+                '创建时间': int(datetime.strptime(user['created_at'], "%Y-%m-%dT%H:%M:%SZ").timestamp() * 1000),
+                '更新时间': int(datetime.strptime(user['updated_at'], "%Y-%m-%dT%H:%M:%SZ").timestamp() * 1000),
+                '收集时间': int(datetime.now().timestamp() * 1000)  
             }
         })
 
@@ -380,9 +381,9 @@ def track_stargazers():
         new_stargazers_details = asyncio.run(fetch_multiple_user_details(new_stargazers_usernames))
         # 根据分数进行排序 分数 = 关注者数 * 1 + 关注数 * 10 + 公开仓库数 * 2
         sorted_stargazers = sorted(
-        new_stargazers_details,
-        key=lambda user: user['followers'] * 1 + user['following'] * 10 + user['public_repos'] * 2,
-        reverse=True
+            [{**user, 'grade': user['followers'] * 1 + user['following'] * 10 + user['public_repos'] * 2} for user in new_stargazers_details],
+            key=lambda user: user['grade'],
+            reverse=True
         )
         logging.info(f"new_stargazers_details: {sorted_stargazers}")
 
